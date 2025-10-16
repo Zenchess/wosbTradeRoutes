@@ -760,11 +760,32 @@ function drawTradeLine(fromCity, toCity, resource, color, labelIndex, totalLabel
   labelIndex = labelIndex || 0;
   totalLabels = totalLabels || 1;
 
+  // Calculate perpendicular offset for the line itself to separate multiple routes
+  var dx = to.x - from.x;
+  var dy = to.y - from.y;
+  var length = Math.sqrt(dx * dx + dy * dy);
+  var perpX = -dy / length;
+  var perpY = dx / length;
+
+  // Offset lines perpendicular to the route
+  var lineOffset = 0;
+  if (totalLabels > 1) {
+    // Spread lines around the center
+    var maxOffset = 20; // Maximum pixels to offset
+    var spacing = (maxOffset * 2) / (totalLabels - 1);
+    lineOffset = -maxOffset + (spacing * labelIndex);
+  }
+
+  var fromX = from.x + perpX * lineOffset;
+  var fromY = from.y + perpY * lineOffset;
+  var toX = to.x + perpX * lineOffset;
+  var toY = to.y + perpY * lineOffset;
+
   var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", from.x);
-  line.setAttribute("y1", from.y);
-  line.setAttribute("x2", to.x);
-  line.setAttribute("y2", to.y);
+  line.setAttribute("x1", fromX);
+  line.setAttribute("y1", fromY);
+  line.setAttribute("x2", toX);
+  line.setAttribute("y2", toY);
   line.setAttribute("stroke", color);
   line.setAttribute("stroke-width", "2");
   line.setAttribute("class", "trade-route");
@@ -786,20 +807,15 @@ function drawTradeLine(fromCity, toCity, resource, color, labelIndex, totalLabel
     position = basePosition - spreadRange + (step * labelIndex);
   }
 
-  var labelX = from.x + (to.x - from.x) * position;
-  var labelY = from.y + (to.y - from.y) * position;
+  // Use the offset line coordinates for label positioning
+  var labelX = fromX + (toX - fromX) * position;
+  var labelY = fromY + (toY - fromY) * position;
 
-  // Also add a small perpendicular offset to further separate overlapping labels
-  var dx = to.x - from.x;
-  var dy = to.y - from.y;
-  var length = Math.sqrt(dx * dx + dy * dy);
-  var perpX = -dy / length;
-  var perpY = dx / length;
-
+  // Add a small additional perpendicular offset to further separate overlapping labels
   // Alternate labels above and below the line
-  var perpOffset = (labelIndex % 2 === 0 ? 1 : -1) * 15;
-  labelX += perpX * perpOffset;
-  labelY += perpY * perpOffset;
+  var additionalOffset = (labelIndex % 2 === 0 ? 1 : -1) * 12;
+  labelX += perpX * additionalOffset;
+  labelY += perpY * additionalOffset;
 
   var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
   text.setAttribute("x", labelX);
