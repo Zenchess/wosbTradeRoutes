@@ -751,11 +751,14 @@ tradeSvg.setAttribute("style", "width: 1863px; height: 1551px; position: absolut
 document.getElementById("canvas").appendChild(tradeSvg);
 
 // Function to draw a line between two cities
-function drawTradeLine(fromCity, toCity, resource, color) {
+function drawTradeLine(fromCity, toCity, resource, color, labelIndex, totalLabels) {
   var from = cityCoords[fromCity];
   var to = cityCoords[toCity];
 
   if (!from || !to) return;
+
+  labelIndex = labelIndex || 0;
+  totalLabels = totalLabels || 1;
 
   var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   line.setAttribute("x1", from.x);
@@ -768,13 +771,39 @@ function drawTradeLine(fromCity, toCity, resource, color) {
 
   tradeSvg.appendChild(line);
 
-  // Add label in the middle of the line
-  var midX = (from.x + to.x) / 2;
-  var midY = (from.y + to.y) / 2;
+  // Calculate position along the line for the label
+  // Spread labels along the line to avoid overlap
+  var basePosition = 0.5; // Middle of the line
+  var spreadRange = 0.3; // How much to spread labels (30% of line length on each side)
+
+  // Calculate offset for this label
+  var position;
+  if (totalLabels === 1) {
+    position = basePosition;
+  } else {
+    // Spread labels evenly along the line
+    var step = (spreadRange * 2) / (totalLabels - 1);
+    position = basePosition - spreadRange + (step * labelIndex);
+  }
+
+  var labelX = from.x + (to.x - from.x) * position;
+  var labelY = from.y + (to.y - from.y) * position;
+
+  // Also add a small perpendicular offset to further separate overlapping labels
+  var dx = to.x - from.x;
+  var dy = to.y - from.y;
+  var length = Math.sqrt(dx * dx + dy * dy);
+  var perpX = -dy / length;
+  var perpY = dx / length;
+
+  // Alternate labels above and below the line
+  var perpOffset = (labelIndex % 2 === 0 ? 1 : -1) * 15;
+  labelX += perpX * perpOffset;
+  labelY += perpY * perpOffset;
 
   var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", midX);
-  text.setAttribute("y", midY);
+  text.setAttribute("x", labelX);
+  text.setAttribute("y", labelY);
   text.setAttribute("fill", color);
   text.setAttribute("font-size", "12");
   text.setAttribute("font-weight", "bold");
@@ -856,6 +885,9 @@ $('#show-islandsxy').click(function() {
 
         var cityPrices = tradeData[cityName];
 
+        // Track routes by destination to offset labels
+        var routesByDestination = {};
+
         // Check each resource to see if this city has the lowest price
         resources.forEach(function(resource) {
           var stats = resourceStats[resource];
@@ -867,11 +899,23 @@ $('#show-islandsxy').click(function() {
             var color = resourceColors[resource] || "#00FF00";
             stats.maxCities.forEach(function(maxCity) {
               if (maxCity !== cityName) {
-                drawTradeLine(cityName, maxCity, resource, color);
+                // Track how many routes go to this destination
+                if (!routesByDestination[maxCity]) {
+                  routesByDestination[maxCity] = [];
+                }
+                routesByDestination[maxCity].push({resource: resource, color: color});
               }
             });
           }
         });
+
+        // Draw all routes with proper label offsets
+        for (var destCity in routesByDestination) {
+          var routes = routesByDestination[destCity];
+          routes.forEach(function(route, index) {
+            drawTradeLine(cityName, destCity, route.resource, route.color, index, routes.length);
+          });
+        }
       },
       function() {
         // Mouse leave - clear trade routes
