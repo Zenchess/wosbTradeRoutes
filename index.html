@@ -817,18 +817,7 @@ function drawTradeLine(fromCity, toCity, resource, color, labelIndex, totalLabel
   labelX += perpX * additionalOffset;
   labelY += perpY * additionalOffset;
 
-  var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", labelX);
-  text.setAttribute("y", labelY);
-  text.setAttribute("fill", color);
-  text.setAttribute("font-size", "12");
-  text.setAttribute("font-weight", "bold");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("class", "trade-route");
-  text.setAttribute("style", "text-shadow: 0px 0px 3px #000, 0px 0px 3px #000, 0px 0px 3px #000;");
-  text.textContent = resource;
-
-  tradeSvg.appendChild(text);
+  // Resource labels removed - now displayed directly under city name
 }
 
 // Function to clear all trade routes
@@ -904,6 +893,9 @@ $('#show-islandsxy').click(function() {
         // Track routes by destination to offset labels
         var routesByDestination = {};
 
+        // Track profitable resources for this city
+        var profitableResources = [];
+
         // Check each resource to see if this city has the lowest price
         resources.forEach(function(resource) {
           var stats = resourceStats[resource];
@@ -911,6 +903,9 @@ $('#show-islandsxy').click(function() {
 
           // If this city has the minimum price for this resource
           if (stats.minCities.indexOf(cityName) !== -1) {
+            // Add to profitable resources list
+            profitableResources.push({resource: resource, color: resourceColors[resource] || "#00FF00"});
+
             // Draw lines to all cities with maximum price for this resource
             var color = resourceColors[resource] || "#00FF00";
             stats.maxCities.forEach(function(maxCity) {
@@ -931,6 +926,31 @@ $('#show-islandsxy').click(function() {
           routes.forEach(function(route, index) {
             drawTradeLine(cityName, destCity, route.resource, route.color, index, routes.length);
           });
+        }
+
+        // Display resources directly under each destination city name
+        for (var destCity in routesByDestination) {
+          if (cityCoords[destCity]) {
+            var cityPos = cityCoords[destCity];
+            var yOffset = 20; // Start below the city label
+            var routes = routesByDestination[destCity];
+
+            routes.forEach(function(item) {
+              var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+              text.setAttribute("x", cityPos.x);
+              text.setAttribute("y", cityPos.y + yOffset);
+              text.setAttribute("fill", item.color);
+              text.setAttribute("font-size", "14");
+              text.setAttribute("font-weight", "bold");
+              text.setAttribute("text-anchor", "middle");
+              text.setAttribute("class", "trade-route");
+              text.setAttribute("style", "text-shadow: 0px 0px 3px #000, 0px 0px 3px #000, 0px 0px 3px #000;");
+              text.textContent = item.resource;
+              tradeSvg.appendChild(text);
+
+              yOffset += 16; // Space between resource names
+            });
+          }
         }
       },
       function() {
